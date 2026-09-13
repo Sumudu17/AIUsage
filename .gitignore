@@ -1,0 +1,9 @@
+# Runtime state - contains this machine's own usage figures
+data/
+
+# Local settings (window position, port). Start from config.example.json.
+config/config.json
+
+# Python
+__pycache__/
+*.py[cod]

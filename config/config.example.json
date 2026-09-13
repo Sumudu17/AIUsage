@@ -1,0 +1,23 @@
+{
+  "refresh_minutes": 10,
+  "server": {
+    "host": "127.0.0.1",
+    "port": 45654
+  },
+  "providers": {
+    "claude": {
+      "enabled": true,
+      "command": "claude",
+      "timeout_seconds": 180
+    },
+    "codex": {
+      "enabled": true
+    }
+  },
+  "widget": {
+    "x": null,
+    "y": null,
+    "opacity": 0.96,
+    "stale_after_minutes": 30
+  }
+}
