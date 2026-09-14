@@ -38,7 +38,14 @@ class PushServer:
     # ----------------------------------------------------------------
     def start(self):
         self._sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        self._sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        if hasattr(socket, "SO_EXCLUSIVEADDRUSE"):
+            # Windows: SO_REUSEADDR lets a second process take over a port
+            # that is already being listened on, so two monitors would run
+            # side by side.  This makes the second one fail to bind instead.
+            self._sock.setsockopt(socket.SOL_SOCKET,
+                                  socket.SO_EXCLUSIVEADDRUSE, 1)
+        else:
+            self._sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         self._sock.bind((self.host, self.port))
         self._sock.listen(8)
         self._thread = threading.Thread(target=self._accept_loop, daemon=True)

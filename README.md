@@ -62,21 +62,15 @@ recently — not a fault.
 
 ## Running it
 
-**1. Start the background monitor.** For everyday use, start it windowless —
-it logs to `data\monitor.log` instead of holding a console window open:
+Two files, one click each:
 
-```bash
-run-monitor-hidden.bat
-```
+| Double-click | What it does |
+| ------------ | ------------ |
+| **`START.bat`** | Starts the background monitor *and* the widget. Safe to click twice — anything already running is left alone. |
+| **`STOP.bat`** | Closes both. |
 
-Stop it again with `stop-monitor.bat`. For a Startup-folder shortcut, use this
-one. To watch it work instead, run it with a console:
-
-```bash
-run-monitor.bat
-```
-
-Leave that window open and minimised. It prints each check:
+Both run windowless. The monitor writes what it is doing to
+`data\monitor.log`:
 
 ```text
 [monitor] listening on 127.0.0.1:45654
@@ -87,19 +81,22 @@ Leave that window open and minimised. It prints each check:
 [monitor]   pushed to 1 widget(s)
 ```
 
-**2. Start the widget:**
-
-```bash
-run-widget.bat
-```
-
 The card appears in the top-right corner. Drag it anywhere, right-click for
 **Refresh / Move to Top Right / Exit**, or close it with the **✕**.
 
-The two are independent — either can be started, stopped or restarted without
-the other. The widget reconnects on its own within a few seconds.
+For a widget that starts with Windows, put a shortcut to `START.bat` in your
+Startup folder (`Win+R` → `shell:startup`).
 
-To collect once without starting the server (useful for checking parsing):
+The two parts are independent — either can be started, stopped or restarted
+without the other, and the widget reconnects on its own within a few seconds.
+To run or stop just one of them:
+
+```bash
+powershell -ExecutionPolicy Bypass -File scripts\appctl.ps1 status
+```
+
+To collect once in a console, without starting the server (useful for checking
+parsing):
 
 ```bash
 py -m usage_service.monitor --once
@@ -169,10 +166,9 @@ AIUsage/
 ├── data/usage.json                latest cached snapshot
 ├── data/monitor.log               monitor output (windowless runs)
 ├── config/config.json             settings
-├── run-monitor.bat                monitor, with a console window
-├── run-monitor-hidden.bat         monitor, windowless + logged
-├── stop-monitor.bat               stops a windowless monitor
-├── run-widget.bat
+├── START.bat                      starts monitor + widget
+├── STOP.bat                       closes both
+├── scripts/appctl.ps1             start/stop/status helper
 └── README.md
 ```
 

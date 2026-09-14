@@ -7,7 +7,7 @@ monitor's local push server and renders whatever arrives, falling back to
 data/usage.json when the monitor is not running.
 
 Run it with:      py widget\\widget.py
-or double-click:  run-widget.bat
+or double-click:  START.bat (starts the monitor too)
 """
 
 from __future__ import annotations

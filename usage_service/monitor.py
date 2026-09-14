@@ -6,7 +6,7 @@ the result to data/usage.json, and pushes it to any connected widget straight
 away.
 
 Run it with:      py -m usage_service.monitor
-or double-click:  run-monitor.bat
+or double-click:  START.bat (starts the widget too)
 """
 
 from __future__ import annotations

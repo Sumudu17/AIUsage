@@ -242,6 +242,11 @@ class ClaudeProvider:
                 [exe, "-p", "/usage", "--output-format", "text"],
                 capture_output=True, text=True, encoding="utf-8",
                 errors="replace", timeout=self.timeout,
+                # Give the child a valid, empty stdin.  Without this it
+                # inherits the parent's, which is an invalid handle when the
+                # monitor runs windowless under pythonw.exe - the CLI then
+                # exits immediately with no output at all.
+                stdin=subprocess.DEVNULL,
                 creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
             )
         except subprocess.TimeoutExpired:
@@ -253,9 +258,11 @@ class ClaudeProvider:
         text = (proc.stdout or "") + "\n" + (proc.stderr or "")
         plan, windows = parse_claude_output(text)
         if not windows:
-            snippet = " ".join(text.split())[:160]
-            return _failed(self.name,
-                           "could not parse CLI output: {}".format(snippet))
+            snippet = " ".join(text.split())[:160] or "(no output)"
+            # Include the exit code - without it, "no output" gives no clue
+            # whether the CLI failed to start or simply printed something new.
+            return _failed(self.name, "CLI exit {}: {}".format(
+                proc.returncode, snippet))
 
         return {
             "name": self.name,
