@@ -25,7 +25,13 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from usage_service import providers as providers_module  # noqa: E402
 from usage_service.server import PushServer              # noqa: E402
 
-BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+# Packaged as an .exe, the code lives in a temporary extraction folder, so
+# config/ and data/ are kept next to the executable instead.
+if getattr(sys, "frozen", False):
+    BASE_DIR = os.path.dirname(sys.executable)
+else:
+    BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
 CONFIG_FILE = os.path.join(BASE_DIR, "config", "config.json")
 DATA_FILE = os.path.join(BASE_DIR, "data", "usage.json")
 
@@ -140,35 +146,12 @@ def collect(providers, previous=None):
     }
 
 
-def run(argv=None):
-    parser = argparse.ArgumentParser(description="AI usage background monitor")
-    parser.add_argument("--once", action="store_true",
-                        help="collect once, print the result and exit")
-    parser.add_argument("--interval", type=float, default=None,
-                        help="override the refresh interval, in minutes")
-    parser.add_argument("--log", default=None,
-                        help="append output to this file (for windowless runs)")
-    args = parser.parse_args(argv)
+def serve_forever(config, interval_minutes, provider_list, stop_event=None):
+    """Collect, cache and push on a loop until stop_event is set.
 
-    if args.log:
-        global LOG_FILE
-        LOG_FILE = args.log if os.path.isabs(args.log) \
-            else os.path.join(BASE_DIR, args.log)
-        try:
-            os.makedirs(os.path.dirname(LOG_FILE), exist_ok=True)
-        except OSError:
-            pass
-
-    config = load_config()
-    interval_minutes = args.interval or config.get("refresh_minutes", 10)
-    provider_list = providers_module.build_providers(config)
-
-    if args.once:
-        snapshot = collect(provider_list, read_cache())
-        write_cache(snapshot)
-        print(json.dumps(snapshot, indent=2))
-        return 0
-
+    Split out of run() so the packaged single-file app can drive the monitor
+    from a background thread while Tk owns the main thread.
+    """
     server_cfg = config.get("server", {})
 
     # Set by a widget asking for an out-of-schedule refresh.
@@ -200,7 +183,7 @@ def run(argv=None):
         server.broadcast(cached)
 
     try:
-        while True:
+        while not (stop_event is not None and stop_event.is_set()):
             started = time.time()
             log("[monitor] checking providers...")
 
@@ -216,10 +199,42 @@ def run(argv=None):
             refresh_requested.clear()
             refresh_requested.wait(max(5.0, interval_minutes * 60 - elapsed))
     except KeyboardInterrupt:
-        print("\n[monitor] stopping")
+        log("[monitor] stopping")
     finally:
         server.stop()
     return 0
+
+
+def run(argv=None):
+    parser = argparse.ArgumentParser(description="AI usage background monitor")
+    parser.add_argument("--once", action="store_true",
+                        help="collect once, print the result and exit")
+    parser.add_argument("--interval", type=float, default=None,
+                        help="override the refresh interval, in minutes")
+    parser.add_argument("--log", default=None,
+                        help="append output to this file (for windowless runs)")
+    args = parser.parse_args(argv)
+
+    if args.log:
+        global LOG_FILE
+        LOG_FILE = args.log if os.path.isabs(args.log) \
+            else os.path.join(BASE_DIR, args.log)
+        try:
+            os.makedirs(os.path.dirname(LOG_FILE), exist_ok=True)
+        except OSError:
+            pass
+
+    config = load_config()
+    interval_minutes = args.interval or config.get("refresh_minutes", 10)
+    provider_list = providers_module.build_providers(config)
+
+    if args.once:
+        snapshot = collect(provider_list, read_cache())
+        write_cache(snapshot)
+        print(json.dumps(snapshot, indent=2))
+        return 0
+
+    return serve_forever(config, interval_minutes, provider_list)
 
 
 if __name__ == "__main__":

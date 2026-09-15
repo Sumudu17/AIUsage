@@ -7,3 +7,7 @@ config/config.json
 # Python
 __pycache__/
 *.py[cod]
+
+# PyInstaller build output
+build/
+dist/

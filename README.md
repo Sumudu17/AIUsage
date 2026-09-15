@@ -166,9 +166,12 @@ AIUsage/
 ├── data/usage.json                latest cached snapshot
 ├── data/monitor.log               monitor output (windowless runs)
 ├── config/config.json             settings
+├── app.py                         single entry point (what the .exe runs)
 ├── START.bat                      starts monitor + widget
 ├── STOP.bat                       closes both
 ├── scripts/appctl.ps1             start/stop/status helper
+├── AIUsage.spec                   PyInstaller build settings
+├── build-exe.bat                  builds dist\AIUsage.exe
 └── README.md
 ```
 
@@ -268,6 +271,67 @@ Newline-delimited JSON over loopback TCP.
 
 Loopback-only, stdlib-only, nothing exposed to the network. A WebSocket would
 need a handshake implementation for no practical gain at this scale.
+
+## Packaging as a single .exe
+
+PyInstaller is the right tool here: it bundles the Python interpreter, the
+standard library and Tkinter into one file, and it can build a windowed
+executable that opens no console.
+
+Build it:
+
+```bash
+build-exe.bat
+```
+
+or directly:
+
+```bash
+py -m PyInstaller --noconfirm --clean AIUsage.spec
+```
+
+That produces **`dist\AIUsage.exe`** (~10 MB). Copy that one file anywhere and
+double-click it. The machine running it needs no Python, no pip and no
+packages.
+
+`AIUsage.spec` holds the build settings — `console=False` (no command prompt),
+one-file output, and the hidden imports PyInstaller cannot see through the
+package. To give it an icon, drop an `icon.ico` beside the spec and uncomment
+the `icon=` line.
+
+If you prefer the raw command over the spec:
+
+```bash
+py -m PyInstaller --onefile --windowed --name AIUsage --add-data "config/config.example.json;config" app.py
+```
+
+### What the .exe does
+
+It runs [`app.py`](app.py), which is the same two halves in one process: the
+monitor on a background thread and the card on the main thread. Behaviour
+matches `START.bat` — including the local push server, so the card updates the
+moment new data arrives.
+
+* On first run it writes `config\config.json` and `data\` **next to the .exe**,
+  so settings and cache stay with it rather than inside the bundle.
+* Double-clicking it twice will not open a second card (a named mutex guards
+  against that, the way `START.bat` was safe to click twice).
+* To close it: the **✕** on the card, or right-click → **Exit**. `STOP.bat` is
+  for the Python version.
+
+### One caveat worth knowing
+
+The .exe removes the need for **Python**, but it cannot remove the need for the
+things it reads:
+
+* **Claude** usage comes from running the `claude` CLI, so Claude Code must be
+  installed and logged in on that machine, otherwise the card shows Claude as
+  unavailable.
+* **Codex** usage is read from `~/.codex/sessions/`, so that machine needs
+  Codex installed and used at least once.
+
+On a machine with neither, the app still starts and simply reports no data —
+it does not crash.
 
 ## Adding another provider
 
