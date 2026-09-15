@@ -115,9 +115,10 @@ CLAUDE_LINE_RE = re.compile(
 )
 
 # "Sep 14, 2:50am (Asia/Colombo)" / "2:50am" / "Sep 14, 12:30pm"
+# The minutes are optional: Claude prints a whole hour as "4am", not "4:00am".
 CLAUDE_RESET_RE = re.compile(
     r"^(?:(?P<mon>[A-Za-z]{3,})\s+(?P<day>\d{1,2})\s*,\s*)?"
-    r"(?P<hour>\d{1,2}):(?P<minute>\d{2})\s*(?P<ampm>am|pm)?"
+    r"(?P<hour>\d{1,2})(?::(?P<minute>\d{2}))?\s*(?P<ampm>am|pm)?"
     r"(?:\s*\((?P<tz>[^)]+)\))?\s*$",
     re.IGNORECASE,
 )
@@ -135,8 +136,19 @@ def parse_claude_reset(text, reference=None):
 
     ref = reference or now_local()
     hour = int(match.group("hour"))
-    minute = int(match.group("minute"))
+    minute = int(match.group("minute") or 0)
     ampm = (match.group("ampm") or "").lower()
+
+    # With the minutes optional, a bare number would otherwise look like a
+    # time.  Require either minutes or an am/pm to call it one.
+    if match.group("minute") is None and not ampm:
+        return None
+    if ampm:
+        if not 1 <= hour <= 12:
+            return None
+    elif not 0 <= hour <= 23:
+        return None
+
     if ampm == "pm" and hour != 12:
         hour += 12
     elif ampm == "am" and hour == 12:
@@ -217,6 +229,19 @@ def parse_claude_output(text, reference=None):
             unique = "{}_{}".format(key, suffix)
             suffix += 1
         windows[unique] = entry
+
+    # Claude only prints "Current session" while a session window is open -
+    # the window starts on first use, so an idle account has no session at
+    # all.  Report that explicitly instead of dropping the row from the card
+    # (or inventing a 0% the CLI never stated).
+    if windows and "session" not in windows:
+        windows["session"] = {
+            "label": "Session",
+            "used_percent": None,
+            "resets_at": None,
+            "window_minutes": None,
+            "note": "no active session",
+        }
 
     return plan, windows
 

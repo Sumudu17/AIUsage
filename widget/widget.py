@@ -510,10 +510,15 @@ class UsageWidget:
             bar.bind("<Configure>", paint)
             paint()
 
-        # reset line: "Resets Tomorrow 12:30 PM  ·  12h 18m"
+        # reset line: "Resets Tomorrow 12:30 PM  ·  12h 18m", or the provider's
+        # own explanation when there is no reset to count down to.
         reset_row = tk.Frame(parent, bg=COLOR_BG)
         reset_row.pack(fill="x", pady=(2, 0))
-        tk.Label(reset_row, text="Resets {}".format(format_reset(reset_at, now)),
+        if reset_at is None and window.get("note"):
+            reset_text = window["note"]
+        else:
+            reset_text = "Resets {}".format(format_reset(reset_at, now))
+        tk.Label(reset_row, text=reset_text,
                  font=FONT_SMALL, fg=COLOR_MUTED, bg=COLOR_BG).pack(side="left")
         countdown = tk.Label(reset_row, text=format_remaining(reset_at, now),
                              font=FONT_SMALL, fg=COLOR_MUTED, bg=COLOR_BG)
